@@ -14,7 +14,8 @@ namespace MinimalApi.Infraestrutura.DB
     {
 
         private readonly IConfiguration _configuracaoAppSettings;
-        public DbContexto(IConfiguration _configuracaoAppSettings){
+        public DbContexto(IConfiguration configuracaoAppSettings)
+        {
             _configuracaoAppSettings = configuracaoAppSettings;
         }
 
@@ -22,14 +23,17 @@ namespace MinimalApi.Infraestrutura.DB
         public DbSet<Administrador> Administradores { get; set; } = default!;
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-        var stringConexao = _configuracaoAppSettings.GetConnectionString("mysql").ToString();
-        if(!string.IsNullOrEmpty(stringConexao)){
+        if(!optionsBuilder.IsConfigured){
+            var stringConexao = _configuracaoAppSettings.GetConnectionString("mysql").ToString();
+            if (!string.IsNullOrEmpty(stringConexao))
+            {
 
-            optionsBuilder.UseMysql(
-                stringConexao,
-            ServerVersion.AutoDetect(stringConexao)
-            );
-        }
+                optionsBuilder.UseMySql(
+                    stringConexao,
+                ServerVersion.AutoDetect(stringConexao)
+                );
+            }
         }
     }
+}
 }
