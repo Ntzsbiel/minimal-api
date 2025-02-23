@@ -50,8 +50,34 @@ app.MapPost("/login", ([FromBody] LoginDTO loginDTO, IAdministradorServico admin
 
 #region Veiculos
 
+ErroDeValidacao validaDTO(VeiculoDTO veiculoDTO){
+
+    var validacao = new ErroDeValidacao{
+        Mensagem = new List<string>()
+    };
+
+    if(string.IsNullOrEmpty(veiculoDTO.Nome))
+        validacao.Mensagem.Add("O nome não pode ser vázio");
+
+    if (string.IsNullOrEmpty(veiculoDTO.Marca))
+        validacao.Mensagem.Add("A marca não pode ficar em branco");
+
+    if (veiculoDTO.Ano < 1950)
+        validacao.Mensagem.Add("Veiculo muito antigo, são aceitos apenas veículos do ano 1950 em diante");
+
+    return validacao;
+
+}
+
 app.MapPost("/veiculos", ([FromBody] VeiculoDTO veiculoDTO, IVeiculoServico veiculoServico) =>
 {
+
+
+    var validacao = validaDTO(veiculoDTO);
+    if(validacao.Mensagem.Count > 0)
+        return Results.BadRequest(validacao);
+
+
 
     var veiculo = new Veiculo{
         Nome = veiculoDTO.Nome,
