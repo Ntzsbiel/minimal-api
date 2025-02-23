@@ -10,7 +10,7 @@ using MinimalApi.Infraestrutura.DB;
 namespace MinimalApi.Migrations
 {
     [DbContext(typeof(DbContexto))]
-    [Migration("20250223163034_VeiculosMigration")]
+    [Migration("20250223173507_VeiculosMigration")]
     partial class VeiculosMigration
     {
         /// <inheritdoc />
@@ -54,6 +54,30 @@ namespace MinimalApi.Migrations
                             Perfil = "Adm",
                             Senha = "123456"
                         });
+                });
+
+            modelBuilder.Entity("MinimalApi.Dominio.Entidades.Veiculo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("Ano")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Marca")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Veiculos");
                 });
 #pragma warning restore 612, 618
         }
