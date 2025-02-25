@@ -17,7 +17,7 @@ namespace MinimalApi.Dominio.Serviços
             _contexto = contexto;
         }
 
-        public Administrador? BuscaPorId(int id)
+        public Administrador? BuscaPorId(int id) 
         {
             return _contexto.Administradores.Where(v => v.Id == id).FirstOrDefault();
         }
