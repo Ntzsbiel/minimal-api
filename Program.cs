@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using MinimalApi.Dominio.Entidades;
 using MinimalApi.Dominio.Enuns;
 using MinimalApi.Dominio.Interfaces;
@@ -14,22 +15,29 @@ using MinimalApi.DTOs;
 using MinimalApi.Infraestrutura.DB;
 
 #region Builder
+
 var builder = WebApplication.CreateBuilder(args);
-var key = builder.Configuration.GetSection("Jwt").ToString();
-if (!string.IsNullOrEmpty(key)) key = "123456";
+var key = builder.Configuration["Jwt:Key"];
 
+if (string.IsNullOrEmpty(key) || key.Length < 16)
+{
+    throw new Exception("A chave JWT é muito curta! Use pelo menos 16 caracteres.");
+}
 
-builder.Services.AddAuthentication(option =>
+builder.Services.AddAuthentication(options =>
 {
-    option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(option =>
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
 {
-    option.TokenValidationParameters = new TokenValidationParameters
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateLifetime = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
-
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true
     };
 });
 
@@ -40,7 +48,30 @@ builder.Services.AddScoped<IVeiculoServico, VeiculoServico>();
 
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Insira o token Jwta aqui"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement{
+        {
+            new OpenApiSecurityScheme{
+                Reference = new OpenApiReference{
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 builder.Services.AddDbContext<DbContexto>(options =>
 {
@@ -54,7 +85,7 @@ var app = builder.Build();
 #endregion
 
 #region Home
-app.MapGet("/", () => Results.Json(new Home { })).WithTags("Home");
+app.MapGet("/", () => Results.Json(new Home { })).AllowAnonymous().WithTags("Home");
 #endregion
 
 #region Administradores
@@ -63,22 +94,18 @@ string GerarTokenJwt(Administrador administrador)
 {
     if (string.IsNullOrEmpty(key)) return string.Empty;
 
-    // Garante que a chave tenha pelo menos 32 caracteres para ser segura
-    var keySize = 32; // 256 bits (recomendado para HmacSha256)
-    var secureKey = key.PadRight(keySize, '*');
-
-    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secureKey));
+    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
     var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
     var claims = new List<Claim>
     {
-        new Claim("Email", administrador.Email),
-        new Claim("Perfil", administrador.Perfil)
+        new Claim(ClaimTypes.Email, administrador.Email),
+        new Claim(ClaimTypes.Role, administrador.Perfil) // Melhor usar ClaimTypes.Role para perfis
     };
 
     var token = new JwtSecurityToken(
+        expires: DateTime.UtcNow.AddDays(1),
         claims: claims,
-        expires: DateTime.Now.AddDays(1),
         signingCredentials: credentials
     );
 
@@ -104,7 +131,7 @@ app.MapPost("administradores/login", ([FromBody] LoginDTO loginDTO, IAdministrad
     else
         return Results.Unauthorized();
 
-}).WithTags("Administrador");
+}).AllowAnonymous().WithTags("Administrador");
 
 
 app.MapGet("/administradores", ([FromQuery] int? pagina, IAdministradorServico administradorServico) =>
